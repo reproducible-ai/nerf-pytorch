@@ -71,7 +71,7 @@ setup:
     # `--index-strategy unsafe-best-match` is REQUIRED: uv gives an
     # --extra-index-url priority over the --index-url, so with the default
     # first-match strategy it finds roar-cli on the main index, never sees this
-    # version, and dies with "no version of roar-cli==0.4.4rc5".
+    # version, and dies with "no version of roar-cli==0.4.4rc6".
     # `--with huggingface-hub` is P0-19: the publish stage's `roar put ... hf://`
     # is what dies -- AFTER every traced step has succeeded -- if it is absent.
     # It lands in the CLI's own isolated venv, not the workload's, so it does not
@@ -80,19 +80,19 @@ setup:
         --index-strategy unsafe-best-match \
         --index-url https://test.pypi.org/simple/ \
         --extra-index-url https://pypi.org/simple/ \
-        roar-cli==0.4.4rc5
+        roar-cli==0.4.4rc6
     # P0-17: symlink it back onto PATH. The agent shells out to a bare `roar`
     # AFTER the run, without this stage's PATH; a row has had all stages succeed,
     # publish, and then be marked FAILED with "No such file or directory: 'roar'".
     sudo ln -sf "$(uv tool dir --bin 2>/dev/null || echo /root/.local/bin)/roar" /usr/local/bin/roar
-    test "$(roar --version | grep -o '[0-9][^ ]*$')" = "0.4.4rc5" || \
+    test "$(roar --version | grep -o '[0-9][^ ]*$')" = "0.4.4rc6" || \
       { echo "WRONG ROAR: $(roar --version)"; exit 1; }
     # A version string is not an identity: distinct builds have shipped under one
     # version string on this project before. Pin the artefact by wheel sha256 and
     # prove the installed files came from that wheel.
     ROAR_WHEEL_SCRATCH=/var/tmp python repro/verify_roar_wheel.py \
-      --version 0.4.4rc5 \
-      --sha256 ed35ed6bda3b5698ab65a887e7390c2ac073123f6d94bfa27b8282285352219c \
+      --version 0.4.4rc6 \
+      --sha256 c7115b748886259b6a089e547404376acf84c3b81b4cbc8dc5610490ebea7199 \
       --exe "$(command -v roar)"
     test "$(ls /usr/local/bin/../lib/python3.10/dist-packages/roar/bin 2>/dev/null | wc -l)" != "0" || \
       test "$(ls $(dirname $(readlink -f $(command -v roar)))/../lib/python*/site-packages/roar/bin | wc -l)" -ge 6 || \
