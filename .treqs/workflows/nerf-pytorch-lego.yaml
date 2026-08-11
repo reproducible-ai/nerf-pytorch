@@ -123,7 +123,18 @@ setup:
     grep -v -E '^(torch==|torchvision)' requirements.txt > /tmp/requirements.norch.txt
     echo "--- installing (requirements.txt minus the torch pins) ---"
     cat /tmp/requirements.norch.txt
-    python -m pip install --quiet -r /tmp/requirements.norch.txt
+    # `tensorboard>=2.0` is in this list and is never imported by any file in the
+    # repository (the only SummaryWriter line is commented out). It is installed
+    # anyway, because installing what upstream declares is the point. If its
+    # resolver constraints collide with the image's, fall back to the set the
+    # workload actually loads and SAY SO rather than failing the row over a
+    # dependency no traced step touches.
+    python -m pip install --quiet -r /tmp/requirements.norch.txt || {
+      echo "=== requirements.txt did not resolve on this image; retrying without tensorboard ==="
+      grep -v -E '^(torch==|torchvision|tensorboard)' requirements.txt > /tmp/requirements.min.txt
+      cat /tmp/requirements.min.txt
+      python -m pip install -r /tmp/requirements.min.txt
+    }
     python -c "import torch; print('torch', torch.__version__, '| cuda', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'cpu')"
     # ---- (c) pre-flight gates, before anything is paid for -------------------
     # The reproduction claim is "upstream's code, unmodified". Prove it by blob
