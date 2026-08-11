@@ -53,6 +53,26 @@ setup:
     # finishes normally the host is torn down long before this fires.
     sudo shutdown -h +40 || true
     echo "watchdog: halt scheduled at +40 min (2x the 20-min measured expectation)"
+    # ---- make the fork URL explicit on `origin` before anything is recorded --
+    # Reproducing this row means cloning the remote recorded in its lineage, so
+    # the recorded value has to be a URL a stranger can actually fetch.
+    #
+    # It is worth knowing WHY this is set rather than assumed. A `[remote
+    # "origin"]` section can exist in .git/config with its `url =` line absent --
+    # any checkout whose config was rewritten line-wise (for instance to strip an
+    # embedded credential) ends up in that state. In it, `git remote` still lists
+    # `origin`, and `git remote get-url origin` does NOT fail: it prints the
+    # remote's NAME back and exits 0. Anything that records "whatever get-url
+    # printed" therefore records the literal string `origin` as the repository
+    # URL, with no error anywhere, and the resulting record cannot be cloned.
+    #
+    # Setting the URL explicitly here, in the untraced setup stage and before any
+    # traced step, makes the recorded remote correct by construction.
+    git remote set-url origin https://github.com/reproducible-ai/nerf-pytorch.git \
+      || git remote add origin https://github.com/reproducible-ai/nerf-pytorch.git
+    git remote -v
+    test "$(git remote get-url origin)" = "https://github.com/reproducible-ai/nerf-pytorch.git" \
+      || { echo "origin is not the fork URL: $(git remote get-url origin)"; exit 1; }
     # ---- (a) provenance CLI: purge, install by version, verify by sha256 -----
     # P0-7: deleting only the .dist-info leaves an importable `roar/` package dir
     # behind, and a bare /usr/local/bin/roar has been caught importing it and
