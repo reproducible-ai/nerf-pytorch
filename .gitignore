@@ -9,6 +9,11 @@
 # .roar/. Without this rule the worktree goes dirty and the FIRST PAID
 # `roar run` refuses to execute ("Run blocked: untracked files").
 .roar/
+# The project binding the job runner writes on the host. The workflow under
+# .treqs/workflows/ IS tracked (roar reproduce clones the recorded remote at the
+# recorded commit and needs it); this file holds host-local ids and would make
+# the worktree dirty, which blocks the first paid `roar run`.
+.treqs/config.toml
 # --- reproduction outputs (scaffold_row.py: the "mnist rule") ---
 # File-pattern ignore of each output dir plus a TRACKED .gitkeep, so the dir
 # survives a clean checkout and roar keeps its outputs in lineage. Never

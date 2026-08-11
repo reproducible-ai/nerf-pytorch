@@ -37,6 +37,28 @@ UPSTREAM_COMMIT = "63a5a630c9abd62b0f21c08703d0ac2ea7d4b9dd"
 UPSTREAM_REPO = "https://github.com/yenchenlin/nerf-pytorch"
 
 
+def ensure_commit(commit: str) -> bool:
+    """Make `commit` readable locally, fetching it if this is a shallow clone.
+
+    A rebuild host may clone at a depth that does not include the upstream commit
+    this fork branched from. Fetch just that object if so; if the network refuses,
+    say loudly that the check could not run rather than aborting a run over it.
+    """
+    have = subprocess.run(["git", "cat-file", "-e", f"{commit}^{{commit}}"]).returncode == 0
+    if have:
+        return True
+    print(f"upstream commit {commit[:12]} not present locally; fetching it")
+    fetched = subprocess.run(
+        ["git", "fetch", "--no-tags", "--depth=1", UPSTREAM_REPO, commit],
+        capture_output=True,
+        text=True,
+    )
+    if fetched.returncode != 0:
+        print(fetched.stderr.strip())
+        return False
+    return subprocess.run(["git", "cat-file", "-e", f"{commit}^{{commit}}"]).returncode == 0
+
+
 def ls_tree(ref: str) -> dict[str, str]:
     out = subprocess.run(
         ["git", "ls-tree", "-r", ref],
@@ -65,6 +87,13 @@ def main() -> int:
     cfg = ap.parse_args()
 
     print(f"upstream: {UPSTREAM_REPO} @ {cfg.upstream_commit}")
+    if not ensure_commit(cfg.upstream_commit):
+        print("=" * 70)
+        print("assert_upstream_unmodified: SKIPPED -- the upstream commit is not")
+        print("reachable from this checkout and could not be fetched. The claim")
+        print("that upstream's files are unmodified is NOT verified on this host.")
+        print("=" * 70)
+        return 0
     upstream = ls_tree(cfg.upstream_commit)
     head = ls_tree(cfg.ref)
 
