@@ -73,12 +73,6 @@ setup:
     git remote -v
     test "$(git remote get-url origin)" = "https://github.com/reproducible-ai/nerf-pytorch.git" \
       || { echo "origin is not the fork URL: $(git remote get-url origin)"; exit 1; }
-    # ---- (a) provenance CLI: purge, install by version, verify by sha256 -----
-    # P0-7: deleting only the .dist-info leaves an importable `roar/` package dir
-    # behind, and a bare /usr/local/bin/roar has been caught importing it and
-    # reporting a stale version. Purge package dirs, entrypoints and .pth files.
-    # Never pipe rm into head: head exits, rm takes SIGPIPE and dies mid-list,
-    # and it still reports success.
     sudo rm -rf /usr/local/lib/python3.10/dist-packages/roar_cli-*.dist-info \
                 /usr/local/lib/python3.10/dist-packages/roar \
                 /opt/pytorch/lib/python3.12/site-packages/roar_cli-*.dist-info \
@@ -93,27 +87,13 @@ setup:
     export PATH=$PATH:/root/.local/bin:/usr/local/bin
     command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh; }
     command -v uv
-    # P0-14: install the CLI under the SAME interpreter the workload records, or
-    # that interpreter's dist-packages can shadow the recorded pins inside the
-    # traced child and the run passes against host packages instead.
     RECORDED_PY="$(python -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])')"
     echo "recorded interpreter: $RECORDED_PY"
-    # `--index-strategy unsafe-best-match` is REQUIRED: uv gives an
-    # --extra-index-url priority over the --index-url, so with the default
-    # first-match strategy it finds roar-cli on the main index, never sees this
-    # version, and dies with "no version of roar-cli==0.4.4rc6".
-    # `--with huggingface-hub` is P0-19: the publish stage's `roar put ... hf://`
-    # is what dies -- AFTER every traced step has succeeded -- if it is absent.
-    # It lands in the CLI's own isolated venv, not the workload's, so it does not
-    # touch the recorded environment.
     uv tool install --python "$RECORDED_PY" --force --with huggingface-hub \
         --index-strategy unsafe-best-match \
         --index-url https://test.pypi.org/simple/ \
         --extra-index-url https://pypi.org/simple/ \
         roar-cli==0.4.4rc6
-    # P0-17: symlink it back onto PATH. The agent shells out to a bare `roar`
-    # AFTER the run, without this stage's PATH; a row has had all stages succeed,
-    # publish, and then be marked FAILED with "No such file or directory: 'roar'".
     sudo ln -sf "$(uv tool dir --bin 2>/dev/null || echo /root/.local/bin)/roar" /usr/local/bin/roar
     test "$(roar --version | grep -o '[0-9][^ ]*$')" = "0.4.4rc6" || \
       { echo "WRONG ROAR: $(roar --version)"; exit 1; }
@@ -128,9 +108,6 @@ setup:
       test "$(ls $(dirname $(readlink -f $(command -v roar)))/../lib/python*/site-packages/roar/bin | wc -l)" -ge 6 || \
       { echo "NO TRACER BINARIES"; exit 1; }
     roar --version
-    # D16: PIN the tracer. `auto` resolves per host, so an unpinned row is traced
-    # by a different tracer than the operator saw locally, invisibly. preload
-    # needs no special permissions, so a visitor reproduces with the SAME tracer.
     roar tracer use preload
     roar tracer
     # ---- (b) this repository's own dependency set ---------------------------
