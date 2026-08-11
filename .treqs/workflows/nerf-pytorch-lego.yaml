@@ -43,6 +43,16 @@ setup:
     python -c "import sys; print('python', sys.version)"
     python -m pip install --quiet requests || true
     rm -rf *.egg-info src/*.egg-info
+    # ---- self-terminating watchdog, sized from a measurement --------------
+    # A previous capture of this exact workflow on this exact instance type ran
+    # 18m07s wall from job creation to job completion -- 31.6s fetch, 684.1s
+    # train (2000 iterations at 3.28 it/s), 22.4s render, the rest provisioning,
+    # setup and publish. Expectation for this run is therefore ~20 minutes, and
+    # the watchdog is set at 2x that. It is a backstop against an operator or a
+    # job runner that dies holding a live GPU, not a step timeout: if the run
+    # finishes normally the host is torn down long before this fires.
+    sudo shutdown -h +40 || true
+    echo "watchdog: halt scheduled at +40 min (2x the 20-min measured expectation)"
     # ---- (a) provenance CLI: purge, install by version, verify by sha256 -----
     # P0-7: deleting only the .dist-info leaves an importable `roar/` package dir
     # behind, and a bare /usr/local/bin/roar has been caught importing it and
