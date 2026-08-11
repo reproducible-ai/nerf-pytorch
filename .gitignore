@@ -5,5 +5,21 @@
 *.npy
 *.npz
 *.dae
+# roar state — the generated setup stage runs `roar init`, which creates
+# .roar/. Without this rule the worktree goes dirty and the FIRST PAID
+# `roar run` refuses to execute ("Run blocked: untracked files").
+.roar/
+# --- reproduction outputs (scaffold_row.py: the "mnist rule") ---
+# File-pattern ignore of each output dir plus a TRACKED .gitkeep, so the dir
+# survives a clean checkout and roar keeps its outputs in lineage. Never
+# dir-ignore. Upstream already carried `data/*` and `logs/*`; the negations and
+# the nested rule for logs/<expname>/ are this fork's only change to this file,
+# and a re-included directory must be listed BEFORE the pattern that would
+# exclude its contents, or git never descends into it.
 data/*
+!data/.gitkeep
 logs/*
+!logs/.gitkeep
+!logs/blender_paper_lego/
+logs/blender_paper_lego/*
+!logs/blender_paper_lego/.gitkeep
